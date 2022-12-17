@@ -6,7 +6,6 @@
 
 using namespace std;
 
-// I'm out of my comfort zone and over scoping
 class Vector2 {
  public:
   int x;
@@ -36,7 +35,6 @@ class Vector2 {
     return closest_point;
   }
 
-  // Wow that's a real keyword
   friend ostream& operator<<(ostream& os, const Vector2& v) {
     os << "X: " << v.x << " Y: " << v.y;
     return os;
