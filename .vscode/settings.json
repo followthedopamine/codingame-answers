@@ -1,5 +1,11 @@
 {
   "files.associations": {
-    "vector": "cpp"
-  }
+    "vector": "cpp",
+    "xstring": "cpp",
+    "utility": "cpp",
+    "iostream": "cpp",
+    "algorithm": "cpp",
+    "ostream": "cpp"
+  },
+  "C_Cpp.errorSquiggles": "enabled"
 }
