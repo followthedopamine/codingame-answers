@@ -2,6 +2,8 @@
 #include <climits>
 #include <cmath>
 #include <iostream>
+#include <iterator>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -53,7 +55,15 @@ class Vector2 {
     return *new Vector2(current.x + to_vector_x / dist * units_to_move, current.y + to_vector_y / dist * units_to_move);
   }
 
-  friend ostream& operator<<(ostream& os, const Vector2& v) {
+  bool equals(Vector2 point2) {
+    Vector2 point1 = *this;
+    if (point1.x == point2.x && point1.y == point2.y) {
+      return true;
+    }
+    return false;
+  }
+
+  friend ostream &operator<<(ostream &os, const Vector2 &v) {
     os << "X: " << v.x << " Y: " << v.y;
     return os;
   }
@@ -118,19 +128,154 @@ class Game {
     score += calculate_score(zombies_killed);
   }
 
-  void simulate_game_round() {
+  void eat_humans() {
+    // If zombie shares square with human remove human from human_positions
+    int count = 0;
+    for (auto i = human_positions.begin(); i != human_positions.end(); i++) {
+      Vector2 human = human_positions[count];
+      for (Vector2 zombie : zombie_positions) {
+        if (zombie.equals(human)) {
+          human_positions.erase(i);
+          count--;  // I hate this
+        }
+      }
+      count++;  // This might not be placed correctly
+    }
+  }
+
+  void move_player(char direction) {
+  }
+
+  void simulate_game_round(char direction) {
     move_zombies();
     // for (Vector2 zombie : zombie_positions) {
     //   cerr << zombie.x << " " << zombie.y << endl;
     // }
     // Might come back to this when implementing the genetic algorithm
-    // move_player();
+    move_player(direction);
     shoot_zombies();  // do scoring here
-    // eat_humans();
+    eat_humans();
+  }
+
+  void simulate_game(string chrom) {
+    for (int i = 0; i < chrom.size(); i++) {
+      simulate_game_round(chrom[i]);
+    }
+  }
+
+  bool check_victory(string moves) {
+    return true;  // TODO
   }
 };
-// How can I test this? Oh nothing is set up to call this
+// Do I want a new class for my genetic algorithm?
 // What I need to do is simulate the game so I can measure the chromosome's success
+
+class Genetics {
+ public:
+  // Game game;
+
+  // Genetics(Game gameInstance) {
+  // }
+
+  template <typename Iter, typename RandomGenerator>
+  Iter select_randomly(Iter start, Iter end, RandomGenerator &g) {
+    std::uniform_int_distribution<> dis(0, std::distance(start, end) - 1);
+    std::advance(start, dis(g));
+    return start;
+  }
+
+  template <typename Iter>
+  Iter select_randomly(Iter start, Iter end) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    return select_randomly(start, end, gen);
+  }
+  // X = UL, Y = DL, Z = UR, Q = DR
+  vector<string> directions{"U", "D", "L", "R", "X", "Y", "Z", "Q"};
+
+  string create_chromosome(int chrom_size) {
+    string chrom;
+    for (int i = 0; i < chrom_size; i++) {
+      chrom += *select_randomly(directions.begin(), directions.end());
+    }
+    return chrom;
+  }
+
+  int get_score(string chrom, Game game) {
+    // TODO: Call game simulation stuff here
+  }
+
+  vector<string> selection(vector<string> population, Game game) {
+    const float selection_percentage = 0.3;
+    const float random_percentage = 0.2;
+
+    vector<pair<int, string>> population_scores;
+    for (string chrom : population) {
+      int score = get_score(chrom, game);
+      // I can just use a pair
+      pair<int, string> temp;
+      temp.first = score;
+      temp.second = chrom;
+      population_scores.push_back(temp);
+    }
+
+    // TODO: Sort by pair.second (I'm tired)
+  }
+
+  string crossover(string parent1, string parent2) {
+    // Combine half of parent1 and half of parent2
+  }
+
+  string mutation(string child) {
+    // Select 1 random direction and modify it with a new one
+  }
+
+  vector<string> create_population(int pop_size, int chrom_size) {
+    vector<string> population;
+    for (int i = 0; i < pop_size; i++) {
+      string chrom = create_chromosome(chrom_size);
+      population.push_back(chrom);
+    }
+  }
+
+  vector<string> generation(vector<string> population, Game game) {
+    vector<string> select = selection(population, game);
+    vector<string> children;
+    while (children.size() < population.size() - select.size()) {
+      string parent1 = *select_randomly(population.begin(), population.end());
+      string parent2 = *select_randomly(population.begin(), population.end());
+      string child = crossover(parent1, parent2);
+
+      child = mutation(child);  // Probably need to make this less common
+      children.push_back(child);
+    }
+    vector<string> result;
+    result.reserve(select.size() + children.size());
+    result.insert(result.end(), children.begin(), children.end());
+    result.insert(result.end(), select.begin(), select.end());
+    return result;
+  }
+
+  string algorithm(Game game) {
+    int chrom_size = 30;  // Max turn length?
+    int population_size = 30;
+    int iterations = 20000;
+    vector<string> population = create_population(population_size, chrom_size);
+    vector<string> answers;
+    int count;
+
+    while (count < iterations) {
+      population = generation(population, game);
+      for (string chrom : population) {
+        // Need to check for victory in simulation
+        if (game.check_victory(chrom)) {
+          answers.push_back(chrom);
+        }
+      }
+      count++;
+    }
+  }
+};
 
 int main() {
   // game loop
@@ -171,10 +316,11 @@ int main() {
     }
     game.zombie_positions = zombie_positions;
 
-    for (int i = 0; i < 20; i++) {
-      game.simulate_game_round();
-    }
+    Genetics genetics;
+    // I might need to make a copy of game at some point, dunno, brain is explode
+    string answer = genetics.algorithm(game);
 
     cout << 0 << " " << 0 << endl;  // For debugging
   }
 }
+// That looks like a nasty error
