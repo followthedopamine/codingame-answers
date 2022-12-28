@@ -53,7 +53,7 @@ class Vector2 {
 
     float dist = sqrt(sq_dist);
     // This might also be wrong
-    return *new Vector2(current.x + to_vector_x / dist * units_to_move, current.y + to_vector_y / dist * units_to_move);
+    return Vector2(current.x + to_vector_x / dist * units_to_move, current.y + to_vector_y / dist * units_to_move);
   }
 
   bool equals(Vector2 point2) {
@@ -75,9 +75,11 @@ class Game {
   const int zombie_speed = 400;
   const int player_speed = 1000;
   const int player_range = 2000;
+  const int game_width = 16000;
+  const int game_height = 9000;
   vector<Vector2> zombie_positions;
   vector<Vector2> human_positions;
-  Vector2 player_postion;
+  Vector2 player_position;
   int score = 0;
   vector<Vector2> game_vectors;
 
@@ -86,7 +88,7 @@ class Game {
   }
 
   int distance_to_player(Vector2 zombie_position) {
-    return player_postion.distance(zombie_position);
+    return player_position.distance(zombie_position);
   }
 
   void move_zombies() {
@@ -140,6 +142,9 @@ class Game {
         if (zombie.equals(human)) {
           human_positions.erase(i);
           count--;  // I hate this
+          if (human_positions.size() == 0) {
+            return;
+          }
         }
       }
       count++;  // This might not be placed correctly
@@ -151,35 +156,53 @@ class Game {
     // TODO: Check OOB
     switch (direction) {
       case 'U':
-        player_postion.y -= 1000;
+        if (player_position.y > player_speed) {
+          player_position.y -= player_speed;
+        }
         break;
       case 'D':
-        player_postion.y += 1000;
+        if (player_position.y < game_height - player_speed) {
+          player_position.y += player_speed;
+        }
         break;
       case 'L':
-        player_postion.x -= 1000;
+        if (player_position.x > player_speed) {
+          player_position.x -= 1000;
+        }
         break;
       case 'R':
-        player_postion.x += 1000;
+        if (player_position.x < game_width - player_speed) {
+          player_position.x += 1000;
+        }
         break;
       case 'X':
-        player_postion.x -= 500;
-        player_postion.y -= 500;
+        if (player_position.x > player_speed / 2 && player_position.y > player_speed / 2) {
+          player_position.x -= 500;
+          player_position.y -= 500;
+        }
         break;
       case 'Y':
-        player_postion.x += 500;
-        player_postion.y -= 500;
+        if (player_position.x < game_width - player_speed / 2 && player_position.y > player_speed / 2) {
+          player_position.x += 500;
+          player_position.y -= 500;
+        }
         break;
       case 'Z':
-        player_postion.x -= 500;
-        player_postion.y += 500;
+        if (player_position.x > player_speed / 2 && player_position.y < game_height - player_speed / 2) {
+          player_position.x -= 500;
+          player_position.y += 500;
+        }
         break;
       case 'Q':
-        player_postion.x += 500;
-        player_postion.y += 500;
+        if (player_position.x < game_width - player_speed / 2 && player_position.y < game_height - player_speed / 2) {
+          player_position.x += 500;
+          player_position.y += 500;
+        }
+        break;
     }
     // cerr << "Player moved in simulation" << endl;
-    game_vectors.push_back(player_postion);
+    game_vectors.push_back(player_position);
+    // cerr << player_position << endl;
   }
 
   void simulate_game_round(char direction) {
@@ -196,14 +219,19 @@ class Game {
     // but this is all working...
   }
 
+  vector<Vector2> get_game_vectors() {
+    return game_vectors;
+  }
+
   int simulate_game(string chrom) {
     for (int i = 0; i < chrom.size(); i++) {
+      if (human_positions.size() == 0) {
+        return -1;
+      }
       simulate_game_round(chrom[i]);
-      cerr << i << endl;
     }
-
-    // Hmm.. only the first 11 iterations
-    cerr << score << endl;
+    // cerr << "Game vectors size: " << game_vectors.size() << endl;
+    //  cerr << "Score: " << score << endl;
 
     return score;
   }
@@ -244,8 +272,6 @@ class Genetics {
   }
 
   vector<string> selection(vector<string> population, Game game) {
-    cerr << "selection is called" << endl;
-
     const float selection_percentage = 0.3;
     const float random_percentage = 0.2;
 
@@ -253,8 +279,6 @@ class Genetics {
 
     for (string chrom : population) {
       int score = get_score(chrom, game);
-      cerr << "get score completed" << endl;
-
       // I can just use a pair
       pair<int, string> temp;
       temp.first = score;
@@ -295,6 +319,7 @@ class Genetics {
     int random_index = rand() % child.size();
     string random_selection = *select_randomly(directions.begin(), directions.end());
     child[random_index] = random_selection[0];
+    return child;
   }
 
   vector<string> create_population(int pop_size, int chrom_size) {
@@ -307,7 +332,6 @@ class Genetics {
   }
 
   vector<string> generation(vector<string> population, Game game) {
-    cerr << "generation is called" << endl;
     vector<string> select = selection(population, game);
     vector<string> children;
     while (children.size() < population.size() - select.size()) {
@@ -322,30 +346,31 @@ class Genetics {
     result.reserve(select.size() + children.size());
     result.insert(result.end(), children.begin(), children.end());
     result.insert(result.end(), select.begin(), select.end());
-    cerr << "end of generation reached" << endl;
+    // cerr << "end of generation reached" << endl;
     return result;
   }
 
   vector<Vector2> algorithm(vector<Vector2> zombie_positions, vector<Vector2> human_positions, Vector2 player_position) {
     cerr << "Algorithm is called" << endl;
 
-    int chrom_size = 5;  // Max turn length?
+    int chrom_size = 15;  // Max turn length?
     int population_size = 30;
-    int iterations = 20000;
+    int iterations = 20;  // I really can't even do 20 iterations in time...
     vector<string> population = create_population(population_size, chrom_size);
     vector<vector<Vector2>> answers;
     int count = 0;
 
     while (count < iterations) {
-      Game game;
+      Game game = Game();
       game.zombie_positions = zombie_positions;
       game.human_positions = human_positions;
-      game.player_postion = player_position;
-      population = generation(population, game);
+      game.player_position = player_position;
+      population = generation(population, game);  // Aren't these variables just being overwritten anyway?
       // for (string chrom : population) {
       //  Need to check for victory in simulation
       //  if (game.check_victory(chrom)) {
-      //  answers.push_back(game.game_vectors);
+      // cerr << "Game vectors size: " << game->get_game_vectors().size() << endl;
+      answers.push_back(game.game_vectors);
 
       for (int i = 0; i < game.game_vectors.size(); i++) {
         cerr << "Game vectors[i]: " << game.game_vectors[i] << endl;
@@ -356,7 +381,9 @@ class Genetics {
     }
     // return answers[0];
     cerr << "End of algorithm is reached" << endl;
-    return {*new Vector2(0, 0)};
+    // Oh maybe answers is massive actually...
+    // Seems like nothing is making it to answers for some reason
+    return answers[0];
   }
 };
 
@@ -369,7 +396,7 @@ int main() {
     int y;
     cin >> x >> y;
     cin.ignore();
-    Vector2 player_position = *new Vector2(x, y);
+    Vector2 player_position = Vector2(x, y);
     int human_count;
     cin >> human_count;
     cin.ignore();
@@ -380,7 +407,7 @@ int main() {
       int human_y;
       cin >> human_id >> human_x >> human_y;
       cin.ignore();
-      Vector2 human_position = *new Vector2(human_x, human_y);
+      Vector2 human_position = Vector2(human_x, human_y);
       human_positions.push_back(human_position);
     }
     int zombie_count;
@@ -395,33 +422,16 @@ int main() {
       int zombie_ynext;
       cin >> zombie_id >> zombie_x >> zombie_y >> zombie_xnext >> zombie_ynext;
       cin.ignore();
-      Vector2 zombie_position = *new Vector2(zombie_x, zombie_y);
+      Vector2 zombie_position = Vector2(zombie_x, zombie_y);
       zombie_positions.push_back(zombie_position);
     }
 
     Genetics genetics;
     if (turns == 0) {
-      // How do I pass a new copy of game here each time?
-      // Did I forget to pass player_position?
       answer = genetics.algorithm(zombie_positions, human_positions, player_position);
     }
 
-    cout << answer[turns].x << " " << answer[turns].y << endl;  // For debugging
+    cout << 0 << " " << 0 << endl;  // For debugging
     turns++;
   }
 }
-// That looks like a nasty error
-// Imagine this actually runs...
-// Oh noey
-// Am I running out of memory? Does that happen?
-// I wonder if this has anything to do with not creating a new game each time
-// Or if I just need to do garbage collection
-// Uh oh gamers, we have a problem
-// So I'm trying to allocate more memory than I have available
-// but y ? :D
-// I think I'm just running out of memory
-// Can I like...clear the memory except for the stuff I need?
-// Who could have predicted that knowing nothing about c++ would come back to haunt me?
-
-// Looks like I have a lot of reading to do :(
-// Bybybyby :wave:
