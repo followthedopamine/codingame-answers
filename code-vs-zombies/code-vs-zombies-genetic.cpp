@@ -201,7 +201,9 @@ class Game {
         break;
     }
     // cerr << "Player moved in simulation" << endl;
+    // cerr << player_position << endl;
     game_vectors.push_back(player_position);
+    cerr << game_vectors.size() << endl;
     // cerr << player_position << endl;
   }
 
@@ -370,6 +372,7 @@ class Genetics {
       //  Need to check for victory in simulation
       //  if (game.check_victory(chrom)) {
       // cerr << "Game vectors size: " << game->get_game_vectors().size() << endl;
+      cerr << game.game_vectors[0].x << endl;
       answers.push_back(game.game_vectors);
 
       for (int i = 0; i < game.game_vectors.size(); i++) {
@@ -430,8 +433,8 @@ int main() {
     if (turns == 0) {
       answer = genetics.algorithm(zombie_positions, human_positions, player_position);
     }
-
-    cout << 0 << " " << 0 << endl;  // For debugging
+    cerr << answer[0].x << endl;
+    cout << answer[turns].x << " " << answer[turns].y << endl;
     turns++;
   }
 }
